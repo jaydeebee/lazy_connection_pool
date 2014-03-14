@@ -3,13 +3,15 @@ LazyConnectionPooler
 
 A lazy connection pooler for Ruby.
 
-This gem is meant to provide functionality similar to
+This gem is meant to provide functionality similar to Mike Perham's lovely
 [connection_pool](http://github.com/mperham/connection_pool), with the
-additional feature that connections will be lazily created, as need
-arises.  It is not meant to be a drop-in replacement.
+twist that connections will be lazily created whenever there's a shortage
+in the pool.  It is not, however, meant to be a drop-in replacement for
+that library.
 
 I've tested this lightly under CRuby 1.9.3 and JRuby 1.7.10, and it doesn't
-appear to deadlock or step on itself.  But my testing should hardly be a
+appear to deadlock or step on itself, even when running hundreds of threads
+battling for a handful of connections.  But my testing should hardly be a
 promise that it's bug-free, or even functional.
 
 Usage
@@ -38,7 +40,9 @@ will pass your block a connection:
 		sock.get('/')
 	}
 
-When used this way, `#get` will return te result of your block.
+When used this way, `#get` will return te result of your block.  If your
+block raises any exceptions, the connection will still be returned to the
+pool, and the exception will be yours to handle.
 
 Connection usage: get/release
 -----------------------------
@@ -68,11 +72,11 @@ Blocking requests
 
 If you run out of connections in the pool, such that you run into your
 `poolsize` limit, `#get` will block until a connection is available.
-`#get` takes one optional boolean argument, indicating whether it shoudl
+`#get` takes one optional boolean argument, indicating whether it should
 wait for a connection to become available.  If it's false, it'll return
 `nil`.  Note that if you use a block with `#get` and it also potentially
 returns `nil`, it could be difficult to differentiate between the two
-conditions.
+conditions, as below:
 
 	body = pool.get(false) { |sock|
 		response = sock.get('/')
